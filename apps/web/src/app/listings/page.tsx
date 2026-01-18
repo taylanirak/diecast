@@ -144,7 +144,7 @@ export default function ListingsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 sticky top-16 lg:top-20 z-40">
+      <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col sm:flex-row gap-4 items-center">
             {/* Search */}
@@ -164,12 +164,20 @@ export default function ListingsPage() {
             {/* Filter Button */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-3 border border-gray-200 rounded-xl hover:border-primary-500 transition-colors"
+              className={`flex items-center gap-2 px-4 py-3 border rounded-xl transition-colors ${
+                showFilters
+                  ? 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600'
+                  : 'bg-white border-gray-200 hover:border-primary-500'
+              }`}
             >
               <FunnelIcon className="w-5 h-5" />
               <span>Filtreler</span>
               {activeFilterCount > 0 && (
-                <span className="bg-primary-500 text-white text-xs px-2 py-0.5 rounded-full">
+                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  showFilters
+                    ? 'bg-white text-orange-500'
+                    : 'bg-primary-500 text-white'
+                }`}>
                   {activeFilterCount}
                 </span>
               )}
