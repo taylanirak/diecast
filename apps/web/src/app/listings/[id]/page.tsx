@@ -95,9 +95,10 @@ export default function ListingDetailPage() {
     if (!isAuthenticated) return;
     try {
       const response = await wishlistApi.check(id);
-      setIsFavorite(response.data?.isFavorite || response.data?.exists || false);
+      setIsFavorite(response.data?.inWishlist || false);
     } catch (error) {
       // Ignore - wishlist check is optional
+      setIsFavorite(false);
     }
   };
 
@@ -502,7 +503,7 @@ export default function ListingDetailPage() {
                   {isFavorite ? (
                     <>
                       <HeartSolidIcon className="w-5 h-5 text-red-500" />
-                      Favorilerde
+                      Favorilerden Çıkar
                     </>
                   ) : (
                     <>

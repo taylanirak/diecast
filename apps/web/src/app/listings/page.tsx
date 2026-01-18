@@ -43,8 +43,8 @@ export default function ListingsPage() {
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
-    brand: '',
-    scale: '',
+    brand: searchParams.get('brand') || '',
+    scale: searchParams.get('scale') || '',
     condition: '',
     minPrice: '',
     maxPrice: '',
@@ -54,9 +54,20 @@ export default function ListingsPage() {
   useEffect(() => {
     const urlSearch = searchParams.get('search');
     const urlCategoryId = searchParams.get('categoryId');
+    const urlBrand = searchParams.get('brand');
+    const urlScale = searchParams.get('scale');
+    
     if (urlSearch) {
       setSearchQuery(urlSearch);
     }
+    
+    // Update filters from URL parameters
+    setFilters(prev => ({
+      ...prev,
+      brand: urlBrand || '',
+      scale: urlScale || '',
+    }));
+    
     if (urlCategoryId) {
       // Category filter will be handled in fetchListings via URL param
     }
