@@ -235,7 +235,7 @@ export class SearchService implements OnModuleInit {
       const total =
         typeof response.hits.total === 'number'
           ? response.hits.total
-          : (response.hits.total as any)?.value || 0;
+          : response.hits.total?.value || 0;
 
       return {
         results: hits.map((hit: any) => ({

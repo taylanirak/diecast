@@ -43,20 +43,43 @@ export default function ListingsPage() {
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
-    brand: '',
-    scale: '',
+    brand: searchParams.get('brand') || '',
+    scale: searchParams.get('scale') || '',
     condition: '',
     minPrice: '',
     maxPrice: '',
     tradeOnly: false,
+    sortBy: 'created_desc', // Varsayılan: En Yeni
   });
 
   useEffect(() => {
     const urlSearch = searchParams.get('search');
+    const urlTradeOnly = searchParams.get('tradeOnly');
+    const urlBrand = searchParams.get('brand');
+    const urlScale = searchParams.get('scale');
+    const urlCondition = searchParams.get('condition');
+    const urlMinPrice = searchParams.get('minPrice');
+    const urlMaxPrice = searchParams.get('maxPrice');
+    const urlSortBy = searchParams.get('sortBy');
     const urlCategoryId = searchParams.get('categoryId');
+
+    // Update search query
     if (urlSearch) {
       setSearchQuery(urlSearch);
     }
+
+    // Update filters from URL params
+    setFilters(prev => ({
+      ...prev,
+      tradeOnly: urlTradeOnly === 'true',
+      brand: urlBrand || '',
+      scale: urlScale || '',
+      condition: urlCondition || '',
+      minPrice: urlMinPrice || '',
+      maxPrice: urlMaxPrice || '',
+      sortBy: urlSortBy || 'created_desc',
+    }));
+    
     if (urlCategoryId) {
       // Category filter will be handled in fetchListings via URL param
     }
@@ -96,6 +119,7 @@ export default function ListingsPage() {
       if (filters.brand) params.brand = filters.brand;
       if (filters.scale) params.scale = filters.scale;
       if (filters.tradeOnly) params.tradeOnly = true;
+      if (filters.sortBy) params.sortBy = filters.sortBy;
 
       const response = await listingsApi.getAll(params);
       setListings(response.data.data || response.data.products || []);
@@ -119,6 +143,7 @@ export default function ListingsPage() {
       minPrice: '',
       maxPrice: '',
       tradeOnly: false,
+      sortBy: 'created_desc',
     });
   };
 
@@ -133,7 +158,7 @@ export default function ListingsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 sticky top-16 lg:top-20 z-40">
+      <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col sm:flex-row gap-4 items-center">
             {/* Search */}
@@ -150,15 +175,37 @@ export default function ListingsPage() {
               </div>
             </form>
 
+            {/* Sort Dropdown */}
+            <select
+              value={filters.sortBy}
+              onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
+              className="px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:border-primary-500 transition-colors cursor-pointer"
+            >
+              <option value="created_desc">En Yeni</option>
+              <option value="created_asc">En Eski</option>
+              <option value="price_asc">Fiyat: Düşükten Yükseğe</option>
+              <option value="price_desc">Fiyat: Yüksekten Düşüğe</option>
+              <option value="title_asc">A-Z</option>
+              <option value="title_desc">Z-A</option>
+            </select>
+
             {/* Filter Button */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-3 border border-gray-200 rounded-xl hover:border-primary-500 transition-colors"
+              className={`flex items-center gap-2 px-4 py-3 border rounded-xl transition-colors ${
+                showFilters
+                  ? 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600'
+                  : 'bg-white border-gray-200 hover:border-primary-500'
+              }`}
             >
               <FunnelIcon className="w-5 h-5" />
               <span>Filtreler</span>
               {activeFilterCount > 0 && (
-                <span className="bg-primary-500 text-white text-xs px-2 py-0.5 rounded-full">
+                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  showFilters
+                    ? 'bg-white text-orange-500'
+                    : 'bg-primary-500 text-white'
+                }`}>
                   {activeFilterCount}
                 </span>
               )}
