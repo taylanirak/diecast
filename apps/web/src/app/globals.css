@@ -1,0 +1,124 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #E53935;
+  --primary-dark: #CC2E2E;
+  --accent-green: #4CAF50;
+  --accent-blue: #2196F3;
+  --text-primary: #212121;
+  --text-secondary: #757575;
+  --background: #FAFAFA;
+  --surface: #FFFFFF;
+  --border: #E0E0E0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background-color: var(--background);
+  color: var(--text-primary);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F5F5F5;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #BDBDBD;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9E9E9E;
+}
+
+/* Focus styles */
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background-color: rgba(229, 57, 53, 0.2);
+}
+
+/* Custom utility classes */
+@layer components {
+  .btn-primary {
+    @apply bg-primary-500 text-white px-6 py-3 rounded-xl font-semibold 
+           hover:bg-primary-600 transition-colors duration-200
+           shadow-lg shadow-primary-500/30;
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-gray-900 px-6 py-3 rounded-xl font-semibold 
+           border-2 border-gray-200 hover:border-primary-500 hover:text-primary-500
+           transition-colors duration-200;
+  }
+  
+  .btn-trade {
+    @apply bg-green-500 text-white px-6 py-3 rounded-xl font-semibold 
+           hover:bg-green-600 transition-colors duration-200
+           shadow-lg shadow-green-500/30;
+  }
+  
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-gray-100 
+           hover:shadow-md transition-shadow duration-200;
+  }
+  
+  .input {
+    @apply w-full px-4 py-3 rounded-xl border border-gray-200 
+           focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20
+           transition-all duration-200 outline-none;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+  }
+  
+  .badge-trade {
+    @apply bg-green-100 text-green-700;
+  }
+  
+  .badge-status {
+    @apply bg-blue-100 text-blue-700;
+  }
+}
+
+/* Animation delays for staggered animations */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+
+/* Hero gradient */
+.hero-gradient {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+}
+
+/* Card hover effect */
+.card-hover {
+  @apply transition-all duration-300;
+}
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15);
+}
+
+
