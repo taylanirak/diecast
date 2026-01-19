@@ -43,7 +43,7 @@ export class UserService {
         addresses: {
           orderBy: { isDefault: 'desc' },
         },
-        membership: {
+        userMembership: {
           include: {
             tier: true,
           },
@@ -61,21 +61,24 @@ export class UserService {
     }
 
     // Format membership info for frontend
-    const membershipInfo = user.membership ? {
+    const membershipInfo = user.userMembership ? {
+      id: user.userMembership.id,
+      status: user.userMembership.status,
+      currentPeriodStart: user.userMembership.currentPeriodStart,
+      currentPeriodEnd: user.userMembership.currentPeriodEnd,
       tier: {
-        type: user.membership.tier.type,
-        name: user.membership.tier.name,
-        maxFreeListings: user.membership.tier.maxFreeListings,
-        maxTotalListings: user.membership.tier.maxTotalListings,
-        maxImagesPerListing: user.membership.tier.maxImagesPerListing,
-        canTrade: user.membership.tier.canTrade,
-        canCreateCollections: user.membership.tier.canCreateCollections,
-        featuredListingSlots: user.membership.tier.featuredListingSlots,
-        commissionDiscount: Number(user.membership.tier.commissionDiscount),
-        isAdFree: user.membership.tier.isAdFree,
+        id: user.userMembership.tier.id,
+        type: user.userMembership.tier.type,
+        name: user.userMembership.tier.name,
+        maxFreeListings: user.userMembership.tier.maxFreeListings,
+        maxTotalListings: user.userMembership.tier.maxTotalListings,
+        maxImagesPerListing: user.userMembership.tier.maxImagesPerListing,
+        canCreateCollections: user.userMembership.tier.canCreateCollections,
+        canTrade: user.userMembership.tier.canTrade,
+        isAdFree: user.userMembership.tier.isAdFree,
+        featuredListingSlots: user.userMembership.tier.featuredListingSlots,
+        commissionDiscount: user.userMembership.tier.commissionDiscount,
       },
-      status: user.membership.status,
-      expiresAt: user.membership.currentPeriodEnd,
     } : {
       tier: {
         type: 'free',
@@ -93,11 +96,12 @@ export class UserService {
       expiresAt: null,
     };
 
-    return {
-      ...user,
-      membershipTier: membershipInfo.tier.type,
+    // Remove raw userMembership and add the mapped membership
+    const { userMembership, ...rest } = user;
+    return { 
+      ...rest, 
       membership: membershipInfo,
-      listingCount: user._count.products,
+      listingCount: user._count?.products || 0,
     };
   }
 

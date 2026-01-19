@@ -90,9 +90,16 @@ export class AuthService {
    */
   async login(dto: LoginDto): Promise<AuthResponseDto> {
     try {
-      // Find user by email
+      // Find user by email with membership info
       const user = await this.prisma.user.findUnique({
         where: { email: dto.email },
+        include: {
+          membership: {
+            include: {
+              tier: true,
+            },
+          },
+        },
       });
 
       if (!user) {
@@ -119,6 +126,10 @@ export class AuthService {
           isSeller: user.isSeller,
           sellerType: user.sellerType ?? undefined,
           createdAt: user.createdAt,
+          membership: user.membership ? {
+            tier: user.membership.tier,
+            expiresAt: user.membership.expiresAt?.toISOString(),
+          } : undefined,
         },
         tokens,
       };

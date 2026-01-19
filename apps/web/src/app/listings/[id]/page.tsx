@@ -75,8 +75,8 @@ export default function ListingDetailPage() {
   const { addToCart, items: cartItems, removeFromCart } = useCartStore();
   const { isAuthenticated, user, limits } = useAuthStore();
   
-  // Free üyeler takas yapamaz
-  const canTrade = user?.membershipTier !== 'free' || limits?.canTrade;
+  // Free üyeler takas yapamaz - Premium, Business veya Basic üyeler trade yapabilir
+  const canTrade = limits?.canTrade ?? (user?.membershipTier === 'premium' || user?.membershipTier === 'business' || user?.membershipTier === 'basic');
   const [showTradeModal, setShowTradeModal] = useState(false);
   
   const [listing, setListing] = useState<Listing | null>(null);
