@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { api } from '../../src/services/api';
+import { ordersApi } from '../../src/services/api';
 import { useAuthStore } from '../../src/stores/authStore';
 import { TarodanColors } from '../../src/theme';
 import RatingModal from '../../src/components/RatingModal';
@@ -50,7 +50,8 @@ export default function OrdersScreen() {
         if (filter !== 'all') {
           params.status = filter;
         }
-        const response = await api.get('/orders', { params });
+        // Web ile aynı endpoint: GET /orders
+        const response = await ordersApi.getAll(params);
         return response.data?.data || response.data || [];
       } catch (error) {
         console.log('Failed to fetch orders');

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { api } from '../services/api';
+import { wishlistApi } from '../services/api';
 
 export interface WishlistItem {
   id: string;
@@ -40,10 +40,11 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
   isLoading: false,
   error: null,
 
+  // Web ile aynı endpoint: GET /wishlist
   fetchFavorites: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.get('/wishlist');
+      const response = await wishlistApi.get();
       const wishlistData = response.data?.items || response.data?.data || response.data || [];
       
       // Map API response to our interface
@@ -76,9 +77,10 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
     }
   },
 
+  // Web ile aynı endpoint: POST /wishlist
   addToFavorites: async (productId: string) => {
     try {
-      const response = await api.post('/wishlist', { productId });
+      await wishlistApi.add(productId);
       
       // Refresh the favorites list after adding
       await get().fetchFavorites();
@@ -97,9 +99,10 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
     }
   },
 
+  // Web ile aynı endpoint: DELETE /wishlist/:productId
   removeFromFavorites: async (productId: string) => {
     try {
-      await api.delete(`/wishlist/${productId}`);
+      await wishlistApi.remove(productId);
       
       // Remove from local state immediately
       set(state => ({
@@ -123,9 +126,10 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
     }
   },
 
+  // Web ile aynı endpoint: DELETE /wishlist
   clearFavorites: async () => {
     try {
-      await api.delete('/wishlist');
+      await wishlistApi.clear();
       set({ items: [] });
     } catch (error: any) {
       console.error('Failed to clear favorites:', error);

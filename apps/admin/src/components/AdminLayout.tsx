@@ -10,28 +10,25 @@ import {
   UsersIcon,
   ShoppingBagIcon,
   ClipboardDocumentListIcon,
-  ArrowsRightLeftIcon,
-  ChatBubbleLeftRightIcon,
-  TicketIcon,
   ChartBarIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
-  ShieldCheckIcon,
+  CurrencyDollarIcon,
+  DocumentChartBarIcon,
+  UserCircleIcon,
 } from '@heroicons/react/24/outline';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+  { name: 'Analizler', href: '/analytics', icon: ChartBarIcon },
+  { name: 'Siparişler', href: '/orders', icon: ClipboardDocumentListIcon },
   { name: 'Kullanıcılar', href: '/users', icon: UsersIcon },
   { name: 'Ürünler', href: '/products', icon: ShoppingBagIcon },
-  { name: 'Moderasyon', href: '/moderation', icon: ShieldCheckIcon },
-  { name: 'Siparişler', href: '/orders', icon: ClipboardDocumentListIcon },
-  { name: 'Takaslar', href: '/trades', icon: ArrowsRightLeftIcon },
-  { name: 'Mesajlar', href: '/messages', icon: ChatBubbleLeftRightIcon },
-  { name: 'Destek', href: '/support', icon: TicketIcon },
-  { name: 'Raporlar', href: '/reports', icon: ChartBarIcon },
-  { name: 'Ayarlar', href: '/settings', icon: Cog6ToothIcon },
+  { name: 'Komisyon', href: '/commission', icon: CurrencyDollarIcon },
+  { name: 'Raporlar', href: '/reports', icon: DocumentChartBarIcon },
+  { name: 'Sistem Ayarları', href: '/settings', icon: Cog6ToothIcon },
 ];
 
 interface AdminLayoutProps {
@@ -129,16 +126,32 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 h-16 bg-dark-900/95 backdrop-blur border-b border-dark-700 flex items-center px-4">
-          <button
-            className="lg:hidden text-gray-400 hover:text-white mr-4"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Bars3Icon className="h-6 w-6" />
-          </button>
-          <div className="flex-1" />
+        <header className="sticky top-0 z-30 h-16 bg-dark-900/95 backdrop-blur border-b border-dark-700 flex items-center justify-between px-4">
+          <div className="flex items-center">
+            <button
+              className="lg:hidden text-gray-400 hover:text-white mr-4"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Bars3Icon className="h-6 w-6" />
+            </button>
+            <div className="hidden lg:flex items-center">
+              <span className="text-xl font-bold text-primary-500">TARODAN</span>
+              <span className="ml-2 text-sm text-gray-400">Admin Panel</span>
+            </div>
+          </div>
           <div className="flex items-center space-x-4">
-            {/* Notifications bell could go here */}
+            {/* Admin email display */}
+            <div className="hidden sm:flex items-center gap-2 text-sm">
+              <span className="text-gray-400">{user?.email}</span>
+            </div>
+            {/* Profile/Settings access */}
+            <Link
+              href="/settings"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-dark-700 transition-colors"
+            >
+              <UserCircleIcon className="h-5 w-5" />
+              <span className="hidden sm:inline text-sm">Profil</span>
+            </Link>
           </div>
         </header>
 

@@ -6,22 +6,34 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '9000',
-        pathname: '/**',
+        protocol: 'https',
+        hostname: 'placehold.co',
       },
       {
         protocol: 'https',
         hostname: 'via.placeholder.com',
-        pathname: '/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.minio.tarodan.com',
+      },
+      {
+        protocol: 'http',
+        hostname: 'minio',
+        port: '9000',
       },
       {
         protocol: 'https',
         hostname: 'storage.tarodan.com',
-        pathname: '/**',
       },
     ],
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',

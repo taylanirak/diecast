@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { api } from '../../src/services/api';
+import { productsApi } from '../../src/services/api';
 import { useAuthStore } from '../../src/stores/authStore';
 import { TarodanColors } from '../../src/theme';
 
@@ -34,7 +34,7 @@ export default function MyListingsScreen() {
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
 
-  // Fetch user's listings
+  // Web ile aynı endpoint: GET /products/my-listings
   const { data: listingsData, isLoading, refetch } = useQuery({
     queryKey: ['my-listings', filter],
     queryFn: async () => {
@@ -43,7 +43,7 @@ export default function MyListingsScreen() {
         if (filter !== 'all') {
           params.status = filter;
         }
-        const response = await api.get('/products/my-listings', { params });
+        const response = await productsApi.getMyListings(params);
         return response.data?.data || response.data || [];
       } catch (error) {
         console.log('Failed to fetch listings, using mock data');
@@ -92,10 +92,10 @@ export default function MyListingsScreen() {
 
   const listings: Listing[] = listingsData || [];
 
-  // Deactivate listing mutation
+  // Deactivate listing mutation - Web ile aynı: PATCH /products/:id
   const deactivateMutation = useMutation({
     mutationFn: async (listingId: string) => {
-      return api.patch(`/products/${listingId}`, { status: 'inactive' });
+      return productsApi.update(listingId, { status: 'inactive' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-listings'] });
@@ -107,10 +107,10 @@ export default function MyListingsScreen() {
     },
   });
 
-  // Reactivate listing mutation
+  // Reactivate listing mutation - Web ile aynı: PATCH /products/:id
   const reactivateMutation = useMutation({
     mutationFn: async (listingId: string) => {
-      return api.patch(`/products/${listingId}`, { status: 'active' });
+      return productsApi.update(listingId, { status: 'active' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-listings'] });
@@ -122,10 +122,10 @@ export default function MyListingsScreen() {
     },
   });
 
-  // Delete listing mutation
+  // Delete listing mutation - Web ile aynı: DELETE /products/:id
   const deleteMutation = useMutation({
     mutationFn: async (listingId: string) => {
-      return api.delete(`/products/${listingId}`);
+      return productsApi.delete(listingId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-listings'] });
@@ -139,10 +139,10 @@ export default function MyListingsScreen() {
     },
   });
 
-  // Relist expired listing
+  // Relist expired listing - Web ile aynı: POST /products/:id/relist
   const relistMutation = useMutation({
     mutationFn: async (listingId: string) => {
-      return api.post(`/products/${listingId}/relist`);
+      return productsApi.update(listingId, { status: 'active', relist: true });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-listings'] });

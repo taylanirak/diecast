@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
-import { api } from '../services/api';
+import { authApi, userApi } from '../services/api';
 
 // Membership tier types
 export type MembershipTier = 'free' | 'basic' | 'premium' | 'business';
@@ -93,7 +93,7 @@ interface AuthState {
   limits: MembershipLimits | null;
   
   // Actions
-  login: (token: string, user: User) => Promise<void>;
+  login: (token: string, user: User, refreshToken?: string) => Promise<void>;
   logout: () => Promise<void>;
   loadToken: () => Promise<void>;
   updateUser: (user: Partial<User>) => void;
@@ -298,16 +298,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   limits: null,
 
-  login: async (token: string, user: User) => {
+  login: async (token: string, user: User, refreshToken?: string) => {
     await SecureStore.setItemAsync('accessToken', token);
+    if (refreshToken) {
+      await SecureStore.setItemAsync('refreshToken', refreshToken);
+    }
     const mappedUser = mapApiUserToUser(user);
     const limits = TIER_LIMITS[mappedUser.membershipTier];
+    console.log('🔐 Auth stored - Tier:', mappedUser.membershipTier);
     set({ isAuthenticated: true, token, user: mappedUser, limits });
   },
 
+  // Web ile aynı endpoint: POST /auth/logout
   logout: async () => {
     try {
-      await api.post('/auth/logout');
+      await authApi.logout();
     } catch (error) {
       // Ignore logout errors
     }
@@ -320,8 +325,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const token = await SecureStore.getItemAsync('accessToken');
       if (token) {
-        // Validate token by fetching user profile
-        const response = await api.get('/users/me');
+        // Web ile aynı endpoint: GET /users/me
+        const response = await userApi.getProfile();
         const mappedUser = mapApiUserToUser(response.data);
         const limits = TIER_LIMITS[mappedUser.membershipTier];
         set({
@@ -351,9 +356,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  // Web ile aynı endpoint: GET /users/me
   refreshUserData: async () => {
     try {
-      const response = await api.get('/users/me');
+      const response = await userApi.getProfile();
       const mappedUser = mapApiUserToUser(response.data);
       const limits = TIER_LIMITS[mappedUser.membershipTier];
       set({ user: mappedUser, limits });

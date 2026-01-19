@@ -61,7 +61,7 @@ export default function ProductsPage() {
         condition: p.condition,
         seller: p.seller || { id: p.sellerId, displayName: 'Satıcı' },
         category: p.category || { name: 'Kategori' },
-        imageUrl: p.images?.[0]?.url || 'https://placehold.co/100',
+        imageUrl: p.imageUrl || p.images?.[0]?.url || p.images?.[0] || 'https://placehold.co/100x100/1a1a2e/666?text=Ürün',
         createdAt: p.createdAt,
       })));
       setTotal(meta.total || data.length);
@@ -219,19 +219,17 @@ export default function ProductsPage() {
                       <td>
                         <div className="flex items-center">
                           <div className="w-12 h-12 bg-dark-700 rounded-lg overflow-hidden mr-3 flex-shrink-0">
-                            {product.imageUrl ? (
-                              <Image
-                                src={product.imageUrl}
-                                alt={product.title}
-                                width={48}
-                                height={48}
-                                className="object-cover w-full h-full"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-gray-500">
-                                No
-                              </div>
-                            )}
+                            <Image
+                              src={product.imageUrl || 'https://placehold.co/100x100/1a1a2e/666?text=Ürün'}
+                              alt={product.title}
+                              width={48}
+                              height={48}
+                              className="object-cover w-full h-full"
+                              unoptimized
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://placehold.co/100x100/1a1a2e/666?text=Ürün';
+                              }}
+                            />
                           </div>
                           <span className="font-medium text-white line-clamp-2">
                             {product.title}
