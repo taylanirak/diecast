@@ -34,7 +34,7 @@ export class UserService {
   }
 
   /**
-   * Get user with addresses
+   * Get user with addresses and membership
    */
   async findByIdWithAddresses(id: string) {
     const user = await this.prisma.user.findUnique({
@@ -42,6 +42,11 @@ export class UserService {
       include: {
         addresses: {
           orderBy: { isDefault: 'desc' },
+        },
+        membership: {
+          include: {
+            tier: true,
+          },
         },
       },
     });

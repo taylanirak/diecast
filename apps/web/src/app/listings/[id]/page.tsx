@@ -74,8 +74,8 @@ export default function ListingDetailPage() {
   const { addToCart, items: cartItems, removeFromCart } = useCartStore();
   const { isAuthenticated, user, limits } = useAuthStore();
   
-  // Free üyeler takas yapamaz
-  const canTrade = user?.membershipTier !== 'free' || limits?.canTrade;
+  // Free üyeler takas yapamaz - Premium, Business veya Basic üyeler trade yapabilir
+  const canTrade = limits?.canTrade ?? (user?.membershipTier === 'premium' || user?.membershipTier === 'business' || user?.membershipTier === 'basic');
   const [showTradeModal, setShowTradeModal] = useState(false);
   
   const [listing, setListing] = useState<Listing | null>(null);
@@ -1055,7 +1055,6 @@ export default function ListingDetailPage() {
         </div>
       </div>
 
-<<<<<<< HEAD
       {/* Product Reviews Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8">
@@ -1151,7 +1150,7 @@ export default function ListingDetailPage() {
           )}
         </div>
       </div>
-=======
+
       {/* Add to Collection Modal */}
       {showCollectionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -1211,7 +1210,6 @@ export default function ListingDetailPage() {
           </div>
         </div>
       )}
->>>>>>> 26a0e5d904f5febad581078d9c1fff531dd2cbbf
 
       {/* Auth Required Modal */}
       <AuthRequiredModal
