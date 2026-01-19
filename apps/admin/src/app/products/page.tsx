@@ -78,8 +78,10 @@ export default function ProductsPage() {
       await adminApi.approveProduct(productId);
       toast.success('Ürün onaylandı');
       loadProducts();
-    } catch (error) {
-      toast.error('İşlem başarısız');
+    } catch (error: any) {
+      console.error('Approve error:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'İşlem başarısız';
+      toast.error(errorMessage);
     }
   };
 
@@ -91,8 +93,10 @@ export default function ProductsPage() {
       await adminApi.rejectProduct(productId, reason);
       toast.success('Ürün reddedildi');
       loadProducts();
-    } catch (error) {
-      toast.error('İşlem başarısız');
+    } catch (error: any) {
+      console.error('Reject error:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'İşlem başarısız';
+      toast.error(errorMessage);
     }
   };
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -15,12 +15,18 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   BoltIcon,
+  FolderPlusIcon,
+  XMarkIcon,
+  MagnifyingGlassPlusIcon,
+  MagnifyingGlassMinusIcon,
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import toast from 'react-hot-toast';
-import { listingsApi, wishlistApi } from '@/lib/api';
+import { listingsApi, wishlistApi, collectionsApi } from '@/lib/api';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
+import AuthRequiredModal from '@/components/AuthRequiredModal';
+import { HeartIcon as HeartOutlineIcon } from '@heroicons/react/24/outline';
 
 interface ProductImage {
   id?: string;
@@ -63,8 +69,8 @@ export default function ListingDetailPage() {
   const router = useRouter();
   const id = params.id as string;
   
-  const { addToCart } = useCartStore();
-  const { isAuthenticated } = useAuthStore();
+  const { addToCart, items: cartItems, removeFromCart } = useCartStore();
+  const { isAuthenticated, user, limits } = useAuthStore();
   
   const [listing, setListing] = useState<Listing | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,6 +78,47 @@ export default function ListingDetailPage() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [showCollectionModal, setShowCollectionModal] = useState(false);
+  const [collections, setCollections] = useState<any[]>([]);
+  const [loadingCollections, setLoadingCollections] = useState(false);
+  const [addingToCollection, setAddingToCollection] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalConfig, setAuthModalConfig] = useState({
+    title: 'Giriş Yapmanız Gerekiyor',
+    message: '',
+    icon: null as React.ReactNode,
+  });
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [lightboxImageIndex, setLightboxImageIndex] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [magnifierPosition, setMagnifierPosition] = useState({ x: 0, y: 0 });
+  const [showMagnifier, setShowMagnifier] = useState(false);
+  const [imageContainerRef, setImageContainerRef] = useState<HTMLDivElement | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const zoomPreviewRef = useRef<HTMLDivElement | null>(null);
+  
+  // Check if product is in cart
+  const cartItem = listing ? cartItems.find(item => item.productId === listing.id) : null;
+  const isInCart = !!cartItem;
+
+  // Helper function to get image URL
+  const getImageUrl = (image: ProductImage | string): string => {
+    if (typeof image === 'string') {
+      return image || 'https://placehold.co/600x600/f3f4f6/9ca3af?text=Ürün';
+    }
+    return image?.url || 'https://placehold.co/600x600/f3f4f6/9ca3af?text=Ürün';
+  };
+
+  // Calculate images array early so it can be used in useEffect hooks
+  const images = useMemo(() => {
+    if (!listing) return ['https://placehold.co/600x600/f3f4f6/9ca3af?text=Ürün'];
+    return listing.images?.length 
+      ? listing.images.map(img => getImageUrl(img))
+      : ['https://placehold.co/600x600/f3f4f6/9ca3af?text=Ürün'];
+  }, [listing]);
 
   useEffect(() => {
     if (id) {
@@ -79,6 +126,45 @@ export default function ListingDetailPage() {
       checkFavorite();
     }
   }, [id, isAuthenticated]);
+
+  // Handle ESC key to close lightbox
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isLightboxOpen) {
+        setIsLightboxOpen(false);
+        setZoomLevel(1);
+        setPanPosition({ x: 0, y: 0 });
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isLightboxOpen) return;
+      
+      if (e.key === 'ArrowLeft') {
+        setLightboxImageIndex((i) => (i > 0 ? i - 1 : images.length - 1));
+        setZoomLevel(1);
+        setPanPosition({ x: 0, y: 0 });
+      } else if (e.key === 'ArrowRight') {
+        setLightboxImageIndex((i) => (i < images.length - 1 ? i + 1 : 0));
+        setZoomLevel(1);
+        setPanPosition({ x: 0, y: 0 });
+      }
+    };
+
+    window.addEventListener('keydown', handleEsc);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isLightboxOpen, images.length]);
+
+  // Sync lightbox image index with active image index
+  useEffect(() => {
+    if (isLightboxOpen) {
+      setLightboxImageIndex(activeImageIndex);
+    }
+  }, [isLightboxOpen, activeImageIndex]);
 
   const fetchListing = async () => {
     try {
@@ -95,17 +181,11 @@ export default function ListingDetailPage() {
     if (!isAuthenticated) return;
     try {
       const response = await wishlistApi.check(id);
-      setIsFavorite(response.data?.isFavorite || response.data?.exists || false);
+      setIsFavorite(response.data?.inWishlist || false);
     } catch (error) {
       // Ignore - wishlist check is optional
+      setIsFavorite(false);
     }
-  };
-
-  const getImageUrl = (image: ProductImage | string): string => {
-    if (typeof image === 'string') {
-      return image || 'https://placehold.co/600x600/f3f4f6/9ca3af?text=Ürün';
-    }
-    return image?.url || 'https://placehold.co/600x600/f3f4f6/9ca3af?text=Ürün';
   };
 
   const handleAddToCart = async () => {
@@ -131,15 +211,85 @@ export default function ListingDetailPage() {
     }
   };
 
+  const handleRemoveFromCart = async () => {
+    if (!cartItem) return;
+    
+    setIsAddingToCart(true);
+    try {
+      await removeFromCart(cartItem.id);
+      toast.success('Ürün sepetten çıkarıldı');
+    } catch (error) {
+      toast.error('Sepetten çıkarılamadı');
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
+
+  const handleCartToggle = () => {
+    if (isInCart) {
+      handleRemoveFromCart();
+    } else {
+      handleAddToCart();
+    }
+  };
+
   const handleBuyNow = () => {
     if (!listing) return;
     router.push(`/checkout?productId=${listing.id}`);
   };
 
+  const isOwner = listing && (listing.sellerId === user?.id || listing.seller?.id === user?.id);
+
+  const handleOpenCollectionModal = async () => {
+    if (!isAuthenticated || !user) {
+      toast.error('Koleksiyona eklemek için giriş yapmalısınız');
+      return;
+    }
+    
+    if (!limits?.canCreateCollections) {
+      toast.error('Koleksiyon oluşturma özelliği üyeliğinizde mevcut değil');
+      router.push('/pricing');
+      return;
+    }
+
+    setShowCollectionModal(true);
+    setLoadingCollections(true);
+    try {
+      const response = await collectionsApi.getMyCollections();
+      const data = response.data?.collections || response.data?.data || [];
+      setCollections(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to fetch collections:', error);
+      toast.error('Koleksiyonlar yüklenemedi');
+    } finally {
+      setLoadingCollections(false);
+    }
+  };
+
+  const handleAddToCollection = async (collectionId: string) => {
+    if (!listing) return;
+    
+    setAddingToCollection(true);
+    try {
+      await collectionsApi.addItem(collectionId, { productId: listing.id });
+      toast.success('Ürün koleksiyona eklendi');
+      setShowCollectionModal(false);
+    } catch (error: any) {
+      console.error('Failed to add to collection:', error);
+      toast.error(error.response?.data?.message || 'Koleksiyona eklenemedi');
+    } finally {
+      setAddingToCollection(false);
+    }
+  };
+
   const handleToggleFavorite = async () => {
     if (!isAuthenticated) {
-      toast.error('Favorilere eklemek için giriş yapın');
-      router.push('/login');
+      setAuthModalConfig({
+        title: 'Favorilere Ekle',
+        message: 'Bu ürünü favorilerinize eklemek için giriş yapmanız gerekiyor.',
+        icon: <HeartOutlineIcon className="w-10 h-10 text-red-500" />,
+      });
+      setShowAuthModal(true);
       return;
     }
     
@@ -212,6 +362,114 @@ export default function ListingDetailPage() {
     setShowShareMenu(false);
   };
 
+  // Lightbox handlers
+  const openLightbox = (index: number) => {
+    setLightboxImageIndex(index);
+    setIsLightboxOpen(true);
+    setZoomLevel(1);
+    setPanPosition({ x: 0, y: 0 });
+  };
+
+  const closeLightbox = () => {
+    setIsLightboxOpen(false);
+    setZoomLevel(1);
+    setPanPosition({ x: 0, y: 0 });
+  };
+
+  const handleZoomIn = () => {
+    setZoomLevel((prev) => Math.min(prev + 0.5, 3));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel((prev) => {
+      const newZoom = Math.max(prev - 0.5, 1);
+      if (newZoom === 1) {
+        setPanPosition({ x: 0, y: 0 });
+      }
+      return newZoom;
+    });
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (!isLightboxOpen) return;
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.2 : 0.2;
+    setZoomLevel((prev) => {
+      const newZoom = Math.max(1, Math.min(3, prev + delta));
+      if (newZoom === 1) {
+        setPanPosition({ x: 0, y: 0 });
+      }
+      return newZoom;
+    });
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (zoomLevel <= 1) return;
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - panPosition.x, y: e.clientY - panPosition.y });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || zoomLevel <= 1) return;
+    setPanPosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Magnifier handlers - optimized with requestAnimationFrame
+  const handleMagnifierMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!imageContainerRef) return;
+    
+    // Cancel previous animation frame
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    
+    // Use requestAnimationFrame to throttle updates
+    animationFrameRef.current = requestAnimationFrame(() => {
+      if (!imageContainerRef) return;
+      
+      const rect = imageContainerRef.getBoundingClientRect();
+      const magnifierSize = 150;
+      const halfSize = magnifierSize / 2;
+      
+      let x = e.clientX - rect.left;
+      let y = e.clientY - rect.top;
+      
+      // Büyüteci resmin kenarlarında sınırla
+      x = Math.max(halfSize, Math.min(rect.width - halfSize, x));
+      y = Math.max(halfSize, Math.min(rect.height - halfSize, y));
+      
+      // Check if mouse is within image bounds
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      
+      if (mouseX >= 0 && mouseX <= rect.width && mouseY >= 0 && mouseY <= rect.height) {
+        setMagnifierPosition({ x, y });
+        setShowMagnifier(true);
+        
+        // Directly update background position for smooth tracking
+        if (zoomPreviewRef.current) {
+          const zoomLevel = 3;
+          const bgX = -x * zoomLevel + (rect.width / 2);
+          const bgY = -y * zoomLevel + (rect.height / 2);
+          zoomPreviewRef.current.style.backgroundPosition = `${bgX}px ${bgY}px`;
+        }
+      } else {
+        setShowMagnifier(false);
+      }
+    });
+  }, [imageContainerRef]);
+
+  const handleMagnifierMouseLeave = () => {
+    setShowMagnifier(false);
+  };
+
   // Check if trade is available
   const isTradeAvailable = listing?.trade_available || listing?.isTradeEnabled || false;
 
@@ -243,29 +501,52 @@ export default function ListingDetailPage() {
     );
   }
 
-  const images = listing.images?.length 
-    ? listing.images.map(img => getImageUrl(img))
-    : ['https://placehold.co/600x600/f3f4f6/9ca3af?text=Ürün'];
-
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Image Gallery */}
-          <div>
-            <div className="relative aspect-square bg-white rounded-2xl overflow-hidden shadow-sm">
+          <div className="relative">
+            {/* Küçük Resim + Büyüteç */}
+            <div 
+              ref={setImageContainerRef}
+              className="relative aspect-square bg-white rounded-2xl overflow-visible shadow-sm cursor-zoom-in"
+              onClick={() => openLightbox(activeImageIndex)}
+              onMouseMove={handleMagnifierMouseMove}
+              onMouseLeave={handleMagnifierMouseLeave}
+            >
               <Image
                 src={images[activeImageIndex]}
                 alt={listing.title}
                 fill
-                className="object-cover"
+                className="object-cover rounded-2xl"
+                unoptimized
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = 'https://placehold.co/600x600/f3f4f6/9ca3af?text=Ürün';
                 }}
               />
+
+              {/* Kare Büyüteç (Viewport) */}
+              {showMagnifier && imageContainerRef && (
+                <div
+                  className="absolute pointer-events-none z-20"
+                  style={{
+                    left: `${magnifierPosition.x}px`,
+                    top: `${magnifierPosition.y}px`,
+                    transform: 'translate(-50%, -50%)',
+                    width: '150px',
+                    height: '150px',
+                    border: '2px solid rgba(255, 140, 0, 0.8)',
+                    boxShadow: '0 0 15px rgba(0, 0, 0, 0.3)',
+                    overflow: 'hidden',
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    borderRadius: '4px',
+                  }}
+                />
+              )}
               
               {isTradeAvailable && (
-                <div className="absolute top-4 left-4 badge badge-trade text-base">
+                <div className="absolute top-4 left-4 badge badge-trade text-base z-10">
                   <ArrowsRightLeftIcon className="w-5 h-5 mr-1" />
                   Takas Kabul Edilir
                 </div>
@@ -275,13 +556,13 @@ export default function ListingDetailPage() {
                 <>
                   <button
                     onClick={() => setActiveImageIndex((i) => (i > 0 ? i - 1 : images.length - 1))}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-colors"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-colors z-10"
                   >
                     <ChevronLeftIcon className="w-6 h-6" />
                   </button>
                   <button
                     onClick={() => setActiveImageIndex((i) => (i < images.length - 1 ? i + 1 : 0))}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-colors z-10"
                   >
                     <ChevronRightIcon className="w-6 h-6" />
                   </button>
@@ -289,23 +570,181 @@ export default function ListingDetailPage() {
               )}
             </div>
 
+            {/* Sağ Taraf: Büyük Zoom Preview - Modal gibi açılır, yazıların üstüne gelebilir */}
+            {showMagnifier && imageContainerRef && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, x: -20 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.95, x: -20 }}
+                transition={{ duration: 0.2 }}
+                className="absolute left-full top-0 ml-4 w-full aspect-square bg-white rounded-2xl overflow-hidden shadow-2xl hidden md:block z-50"
+                style={{ maxWidth: '600px' }}
+              >
+                <div
+                  ref={zoomPreviewRef}
+                  className="absolute inset-0"
+                  style={{
+                    backgroundImage: `url(${images[activeImageIndex]})`,
+                    backgroundSize: `${imageContainerRef.offsetWidth * 3}px ${imageContainerRef.offsetHeight * 3}px`,
+                    backgroundRepeat: 'no-repeat',
+                    willChange: 'background-position',
+                  }}
+                />
+              </motion.div>
+            )}
+
             {/* Thumbnails */}
             {images.length > 1 && (
               <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
                 {images.map((img, index) => (
                   <button
                     key={index}
-                    onClick={() => setActiveImageIndex(index)}
+                    onClick={() => {
+                      setActiveImageIndex(index);
+                      openLightbox(index);
+                    }}
                     className={`relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-colors ${
                       index === activeImageIndex ? 'border-primary-500' : 'border-transparent'
                     }`}
                   >
-                    <Image src={img} alt="" fill className="object-cover" />
+                    <Image src={img} alt="" fill className="object-cover" unoptimized />
                   </button>
                 ))}
               </div>
             )}
           </div>
+
+          {/* Lightbox Modal */}
+          {isLightboxOpen && (
+            <div 
+              className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+              onClick={closeLightbox}
+            >
+              <div 
+                className="relative max-w-7xl w-full h-full flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Close Button */}
+                <button
+                  onClick={closeLightbox}
+                  className="absolute top-4 right-4 z-10 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+
+                {/* Zoom Controls */}
+                <div className="absolute top-4 left-4 z-10 flex gap-2">
+                  <button
+                    onClick={handleZoomIn}
+                    className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+                    disabled={zoomLevel >= 3}
+                  >
+                    <MagnifyingGlassPlusIcon className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={handleZoomOut}
+                    className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+                    disabled={zoomLevel <= 1}
+                  >
+                    <MagnifyingGlassMinusIcon className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Image Container */}
+                <div 
+                  className="flex-1 flex items-center justify-center overflow-hidden"
+                  onWheel={handleWheel}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                  style={{ cursor: zoomLevel > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
+                >
+                  <div
+                    className="relative"
+                    style={{
+                      transform: `scale(${zoomLevel}) translate(${panPosition.x / zoomLevel}px, ${panPosition.y / zoomLevel}px)`,
+                      transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+                    }}
+                  >
+                    <Image
+                      src={images[lightboxImageIndex]}
+                      alt={listing.title}
+                      width={1200}
+                      height={1200}
+                      className="max-w-[90vw] max-h-[90vh] object-contain"
+                      unoptimized
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://placehold.co/600x600/f3f4f6/9ca3af?text=Ürün';
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Navigation Arrows */}
+                {images.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => {
+                        setLightboxImageIndex((i) => (i > 0 ? i - 1 : images.length - 1));
+                        setZoomLevel(1);
+                        setPanPosition({ x: 0, y: 0 });
+                      }}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors z-10"
+                    >
+                      <ChevronLeftIcon className="w-6 h-6" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setLightboxImageIndex((i) => (i < images.length - 1 ? i + 1 : 0));
+                        setZoomLevel(1);
+                        setPanPosition({ x: 0, y: 0 });
+                      }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors z-10"
+                    >
+                      <ChevronRightIcon className="w-6 h-6" />
+                    </button>
+                  </>
+                )}
+
+                {/* Thumbnails */}
+                {images.length > 1 && (
+                  <div className="flex justify-center gap-2 pb-4 overflow-x-auto px-4">
+                    {images.map((img, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          setLightboxImageIndex(index);
+                          setZoomLevel(1);
+                          setPanPosition({ x: 0, y: 0 });
+                        }}
+                        className={`relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-colors ${
+                          index === lightboxImageIndex 
+                            ? 'border-primary-500' 
+                            : 'border-white/20 hover:border-white/40'
+                        }`}
+                      >
+                        <Image 
+                          src={img} 
+                          alt="" 
+                          fill 
+                          className="object-cover" 
+                          unoptimized
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Image Counter */}
+                {images.length > 1 && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full text-white text-sm">
+                    {lightboxImageIndex + 1} / {images.length}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Details */}
           <div>
@@ -454,13 +893,30 @@ export default function ListingDetailPage() {
                       </span>
                     </div>
                   </div>
-                  <Link
-                    href={`/messages?user=${listing.seller.id}&listing=${listing.id}`}
-                    className="btn-secondary flex items-center gap-2"
-                  >
-                    <ChatBubbleLeftRightIcon className="w-5 h-5" />
-                    Mesaj Gönder
-                  </Link>
+                  {isAuthenticated ? (
+                    <Link
+                      href={`/messages?user=${listing.seller.id}&listing=${listing.id}`}
+                      className="btn-secondary flex items-center gap-2"
+                    >
+                      <ChatBubbleLeftRightIcon className="w-5 h-5" />
+                      Mesaj Gönder
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setAuthModalConfig({
+                          title: 'Satıcıya Mesaj Gönder',
+                          message: 'Satıcıyla iletişime geçmek için giriş yapmanız gerekiyor.',
+                          icon: <ChatBubbleLeftRightIcon className="w-10 h-10 text-primary-500" />,
+                        });
+                        setShowAuthModal(true);
+                      }}
+                      className="btn-secondary flex items-center gap-2"
+                    >
+                      <ChatBubbleLeftRightIcon className="w-5 h-5" />
+                      Mesaj Gönder
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -488,12 +944,15 @@ export default function ListingDetailPage() {
                   </Link>
                 )}
                 <button
-                  onClick={handleAddToCart}
+                  onClick={handleCartToggle}
                   disabled={isAddingToCart}
-                  className="btn-secondary flex-1 flex items-center justify-center gap-2"
+                  className={`btn-secondary flex-1 flex items-center justify-center gap-2 ${isInCart ? 'bg-red-50 border-red-200 text-red-600' : ''}`}
                 >
                   <ShoppingCartIcon className="w-5 h-5" />
-                  {isAddingToCart ? 'Ekleniyor...' : 'Sepete Ekle'}
+                  {isAddingToCart 
+                    ? (isInCart ? 'Çıkarılıyor...' : 'Ekleniyor...') 
+                    : (isInCart ? 'Sepetten Çıkar' : 'Sepete Ekle')
+                  }
                 </button>
                 <button
                   onClick={handleToggleFavorite}
@@ -502,7 +961,7 @@ export default function ListingDetailPage() {
                   {isFavorite ? (
                     <>
                       <HeartSolidIcon className="w-5 h-5 text-red-500" />
-                      Favorilerde
+                      Favorilerden Çıkar
                     </>
                   ) : (
                     <>
@@ -513,10 +972,91 @@ export default function ListingDetailPage() {
                 </button>
               </div>
             </div>
+
+            {/* Add to Collection Button - Only for owner */}
+            {isOwner && limits?.canCreateCollections && (
+              <div className="pt-3 border-t border-gray-200">
+                <button
+                  onClick={handleOpenCollectionModal}
+                  className="w-full btn-secondary flex items-center justify-center gap-2"
+                >
+                  <FolderPlusIcon className="w-5 h-5" />
+                  Koleksiyona Ekle
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
+      {/* Add to Collection Modal */}
+      {showCollectionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col shadow-xl">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900">Koleksiyona Ekle</h2>
+            
+            {loadingCollections ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto">
+                <div className="space-y-2">
+                  {collections.length > 0 ? (
+                    collections.map((collection) => (
+                      <button
+                        key={collection.id}
+                        onClick={() => handleAddToCollection(collection.id)}
+                        disabled={addingToCollection}
+                        className="w-full text-left p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <h3 className="font-medium text-gray-900">{collection.name}</h3>
+                        {collection.description && (
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{collection.description}</p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-2">
+                          {collection.itemCount || 0} ürün
+                        </p>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="text-gray-600 text-center py-8">Henüz koleksiyonunuz yok</p>
+                  )}
+                  
+                  {/* New Collection Button */}
+                  <button
+                    onClick={() => {
+                      setShowCollectionModal(false);
+                      router.push('/collections');
+                    }}
+                    className="w-full p-4 bg-primary-50 hover:bg-primary-100 border-2 border-dashed border-primary-300 rounded-lg transition-colors text-primary-700 font-medium"
+                  >
+                    + Yeni Koleksiyon Oluştur
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <button
+                onClick={() => setShowCollectionModal(false)}
+                className="w-full px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg transition-colors font-medium"
+              >
+                İptal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Auth Required Modal */}
+      <AuthRequiredModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        title={authModalConfig.title}
+        message={authModalConfig.message}
+        icon={authModalConfig.icon}
+      />
     </div>
   );
 }
