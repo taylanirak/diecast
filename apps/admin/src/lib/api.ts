@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export const api = axios.create({
   baseURL: `${API_URL}/api`,
@@ -46,6 +46,7 @@ export const adminApi = {
   getDashboard: () => api.get('/admin/dashboard'),
   getRecentOrders: (limit?: number) => api.get('/admin/dashboard/recent-orders', { params: { limit } }),
   getPendingActions: () => api.get('/admin/dashboard/pending-actions'),
+  getIdentityVerificationRequests: () => api.get('/admin/users/verification-requests'),
   
   // Analytics
   getSalesAnalytics: (params?: { startDate?: string; endDate?: string; groupBy?: string }) => 
@@ -65,7 +66,7 @@ export const adminApi = {
   // Products
   getProducts: (params?: any) => api.get('/admin/products', { params }),
   getProduct: (id: string) => api.get(`/admin/products/${id}`),
-  approveProduct: (id: string) => api.post(`/admin/products/${id}/approve`),
+  approveProduct: (id: string, note?: string) => api.post(`/admin/products/${id}/approve`, { note }),
   rejectProduct: (id: string, reason: string) => api.post(`/admin/products/${id}/reject`, { reason }),
   deleteProduct: (id: string) => api.delete(`/admin/products/${id}`),
   

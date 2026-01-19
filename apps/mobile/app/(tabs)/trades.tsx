@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { api } from '../../src/services/api';
+import { tradesApi } from '../../src/services/api';
 import { useAuthStore } from '../../src/stores/authStore';
 
 const TRADE_STATUSES = {
@@ -25,9 +25,10 @@ export default function TradesScreen() {
   const [filter, setFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
 
+  // Web ile aynı endpoint: GET /trades
   const { data: trades, isLoading, refetch } = useQuery({
     queryKey: ['trades', filter],
-    queryFn: () => api.get('/trades', { params: { status: filter === 'all' ? undefined : filter } }).then(res => res.data),
+    queryFn: () => tradesApi.getAll({ status: filter === 'all' ? undefined : filter }).then(res => res.data),
     enabled: isAuthenticated,
   });
 

@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { api } from '../../src/services/api';
+import { authApi } from '../../src/services/api';
 import { useAuthStore } from '../../src/stores/authStore';
 
 const loginSchema = z.object({
@@ -23,11 +23,22 @@ export default function LoginScreen() {
     resolver: zodResolver(loginSchema),
   });
 
+  // Web ile aynı endpoint: POST /auth/login
   const loginMutation = useMutation({
-    mutationFn: (data: LoginForm) => api.post('/auth/login', data),
+    mutationFn: (data: LoginForm) => authApi.login(data.email, data.password),
     onSuccess: async (response) => {
-      await login(response.data.accessToken, response.data.user);
+      // API response: { user, tokens: { accessToken, refreshToken } }
+      const data = response.data;
+      const accessToken = data.tokens?.accessToken || data.accessToken;
+      const refreshToken = data.tokens?.refreshToken || data.refreshToken;
+      const user = data.user;
+      
+      console.log('✅ Login başarılı:', user?.email);
+      await login(accessToken, user, refreshToken);
       router.replace('/');
+    },
+    onError: (error: any) => {
+      console.log('❌ Login hatası:', error.response?.data?.message || error.message);
     },
   });
 

@@ -4,7 +4,7 @@ import { Text, Card, Searchbar, Chip, ActivityIndicator, Button, IconButton, Div
 import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { api } from '../../src/services/api';
+import { productsApi } from '../../src/services/api';
 import { TarodanColors, SCALES, BRANDS, CONDITIONS } from '../../src/theme';
 
 const { width } = Dimensions.get('window');
@@ -44,22 +44,66 @@ export default function SearchScreen() {
     return () => clearTimeout(timer);
   }, []);
 
-  const queryParams = useMemo(() => ({
-    q: debouncedQuery,
-    sort: sortBy,
-    category,
-    brand: selectedBrands.join(','),
-    scale: selectedScales.join(','),
-    condition: selectedConditions.join(','),
-    minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
-    maxPrice: priceRange[1] < 50000 ? priceRange[1] : undefined,
-    tradeAvailable: tradeOnly || undefined,
-  }), [debouncedQuery, sortBy, category, selectedBrands, selectedScales, selectedConditions, priceRange, tradeOnly]);
+  const queryParams = useMemo(() => {
+    // Sadece değeri olan parametreleri gönder - boş string API'de 400 hatası veriyor
+    const params: Record<string, any> = {};
+    
+    if (debouncedQuery) params.q = debouncedQuery;
+    if (sortBy) params.sort = sortBy;
+    if (category) params.category = category;
+    if (selectedBrands.length > 0) params.brand = selectedBrands.join(',');
+    if (selectedScales.length > 0) params.scale = selectedScales.join(',');
+    if (selectedConditions.length > 0) params.condition = selectedConditions.join(',');
+    if (priceRange[0] > 0) params.minPrice = priceRange[0];
+    if (priceRange[1] < 50000) params.maxPrice = priceRange[1];
+    if (tradeOnly) params.tradeAvailable = true;
+    
+    return params;
+  }, [debouncedQuery, sortBy, category, selectedBrands, selectedScales, selectedConditions, priceRange, tradeOnly]);
 
-  const { data: results, isLoading, refetch } = useQuery({
+  // Web ile aynı endpoint: GET /products
+  const { data: products, isLoading, refetch, error } = useQuery({
     queryKey: ['products', queryParams],
-    queryFn: () => api.get('/products', { params: queryParams }).then(res => res.data),
+    queryFn: async () => {
+      console.log('🔍 Search API çağrılıyor, params:', JSON.stringify(queryParams));
+      try {
+        const res = await productsApi.getAll(queryParams);
+        console.log('🔍 Raw API response status:', res.status);
+        console.log('🔍 Raw API response keys:', Object.keys(res.data || {}));
+        console.log('🔍 res.data type:', typeof res.data);
+        console.log('🔍 res.data:', JSON.stringify(res.data).substring(0, 500));
+        
+        // API response: res.data could be { data: [...] } or { products: [...] } or [...]
+        let data = [];
+        if (Array.isArray(res.data)) {
+          data = res.data;
+          console.log('🔍 res.data is array');
+        } else if (res.data?.data && Array.isArray(res.data.data)) {
+          data = res.data.data;
+          console.log('🔍 Using res.data.data');
+        } else if (res.data?.products && Array.isArray(res.data.products)) {
+          data = res.data.products;
+          console.log('🔍 Using res.data.products');
+        } else if (res.data?.items && Array.isArray(res.data.items)) {
+          data = res.data.items;
+          console.log('🔍 Using res.data.items');
+        }
+        
+        console.log('🔍 Final products count:', data.length);
+        if (data.length > 0) {
+          console.log('🔍 First product:', JSON.stringify(data[0]).substring(0, 200));
+        }
+        return data;
+      } catch (err: any) {
+        console.log('❌ Search API error:', err.message);
+        console.log('❌ Error response:', err.response?.data);
+        throw err;
+      }
+    },
   });
+
+  // Log state changes
+  console.log('📊 Current state - products:', products?.length || 0, 'isLoading:', isLoading, 'error:', error?.message);
 
   const handleProductPress = (productId: string) => {
     router.push(`/product/${productId}`);
@@ -112,13 +156,17 @@ export default function SearchScreen() {
     return count;
   }, [selectedBrands, selectedScales, selectedConditions, priceRange, tradeOnly, category]);
 
-  const renderProduct = ({ item }: { item: any }) => (
+  const renderProduct = ({ item }: { item: any }) => {
+    // Image URL extraction - handle both string and object formats
+    const imageUrl = item.images?.[0]?.url || item.images?.[0] || 'https://placehold.co/200x200/f3f4f6/9ca3af?text=Ürün';
+    
+    return (
     <Card
       style={styles.productCard}
       onPress={() => handleProductPress(item.id)}
     >
       <Card.Cover
-        source={{ uri: item.images?.[0] || 'https://placehold.co/200x200/f3f4f6/9ca3af?text=Ürün' }}
+        source={{ uri: imageUrl }}
         style={styles.productImage}
       />
       {item.tradeAvailable && (
@@ -143,6 +191,7 @@ export default function SearchScreen() {
       </Card.Content>
     </Card>
   );
+  };
 
   return (
     <View style={styles.container}>
@@ -249,7 +298,7 @@ export default function SearchScreen() {
       {/* Results Count */}
       <View style={styles.resultsCount}>
         <Text style={styles.resultsCountText}>
-          {isLoading ? 'Aranıyor...' : `${results?.total || 0} sonuç bulundu`}
+          {isLoading ? 'Aranıyor...' : `${products?.length || 0} sonuç bulundu`}
         </Text>
       </View>
 
@@ -261,7 +310,7 @@ export default function SearchScreen() {
         </View>
       ) : (
         <FlatList
-          data={results?.data || []}
+          data={products || []}
           numColumns={2}
           contentContainerStyle={styles.listContent}
           columnWrapperStyle={styles.listRow}
@@ -493,7 +542,7 @@ export default function SearchScreen() {
               buttonColor={TarodanColors.primary}
               style={[styles.modalButton, { flex: 2 }]}
             >
-              {results?.total || 0} Sonuç Göster
+              {products?.length || 0} Sonuç Göster
             </Button>
           </View>
         </View>

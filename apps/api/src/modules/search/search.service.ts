@@ -79,32 +79,34 @@ export class SearchService implements OnModuleInit {
       });
 
       if (!indexExists) {
+        // 7.x API: settings and mappings go inside body
         await this.client.indices.create({
           index: this.PRODUCTS_INDEX,
-          settings: {
-            number_of_shards: 1,
-            number_of_replicas: 0,
-            analysis: {
-              analyzer: {
-                turkish: {
-                  type: 'custom',
-                  tokenizer: 'standard',
-                  filter: ['lowercase', 'turkish_stop', 'turkish_stemmer'],
+          body: {
+            settings: {
+              number_of_shards: 1,
+              number_of_replicas: 0,
+              analysis: {
+                analyzer: {
+                  turkish: {
+                    type: 'custom',
+                    tokenizer: 'standard',
+                    filter: ['lowercase', 'turkish_stop', 'turkish_stemmer'],
+                  },
                 },
-              },
-              filter: {
-                turkish_stop: {
-                  type: 'stop',
-                  stopwords: '_turkish_',
-                },
-                turkish_stemmer: {
-                  type: 'stemmer',
-                  language: 'turkish',
+                filter: {
+                  turkish_stop: {
+                    type: 'stop',
+                    stopwords: '_turkish_',
+                  },
+                  turkish_stemmer: {
+                    type: 'stemmer',
+                    language: 'turkish',
+                  },
                 },
               },
             },
-          },
-          mappings: {
+            mappings: {
               properties: {
                 id: { type: 'keyword' },
                 title: {
@@ -131,6 +133,7 @@ export class SearchService implements OnModuleInit {
                 updatedAt: { type: 'date' },
               },
             },
+          },
         });
         console.log('✅ Created Elasticsearch index: products');
       }
@@ -218,17 +221,20 @@ export class SearchService implements OnModuleInit {
     }
 
     try {
+      // 7.x API: query/sort/from/size go inside body
       const response = await this.client.search({
         index: this.PRODUCTS_INDEX,
-        query: {
-          bool: {
-            must: must.length > 0 ? must : [{ match_all: {} }],
-            filter,
+        body: {
+          query: {
+            bool: {
+              must: must.length > 0 ? must : [{ match_all: {} }],
+              filter,
+            },
           },
+          sort,
+          from: (page - 1) * pageSize,
+          size: pageSize,
         },
-        sort,
-        from: (page - 1) * pageSize,
-        size: pageSize,
       });
 
       const hits = response.hits.hits;
@@ -278,10 +284,11 @@ export class SearchService implements OnModuleInit {
     if (!product) return;
 
     try {
+      // 7.x API: document goes inside body
       await this.client.index({
         index: this.PRODUCTS_INDEX,
         id: product.id,
-        document: {
+        body: {
           id: product.id,
           title: product.title,
           description: product.description,
@@ -368,7 +375,8 @@ export class SearchService implements OnModuleInit {
           },
         ]);
 
-        await this.client.bulk({ refresh: true, operations: body });
+        // 7.x API: use body instead of operations
+        await this.client.bulk({ refresh: true, body });
       }
 
       // Update index status
@@ -397,24 +405,27 @@ export class SearchService implements OnModuleInit {
    */
   async autocomplete(query: string, limit = 10): Promise<string[]> {
     try {
+      // 7.x API: query/_source/size go inside body
       const response = await this.client.search({
         index: this.PRODUCTS_INDEX,
-        query: {
-          bool: {
-            must: [
-              {
-                multi_match: {
-                  query,
-                  type: 'phrase_prefix',
-                  fields: ['title', 'categoryName'],
+        body: {
+          query: {
+            bool: {
+              must: [
+                {
+                  multi_match: {
+                    query,
+                    type: 'phrase_prefix',
+                    fields: ['title', 'categoryName'],
+                  },
                 },
-              },
-            ],
-            filter: [{ term: { status: ProductStatus.active } }],
+              ],
+              filter: [{ term: { status: ProductStatus.active } }],
+            },
           },
+          _source: ['title'],
+          size: limit,
         },
-        _source: ['title'],
-        size: limit,
       });
 
       return response.hits.hits.map((hit: any) => hit._source.title);

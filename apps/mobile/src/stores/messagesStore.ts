@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { api } from '../services/api';
+import { messagesApi } from '../services/api';
 import { useAuthStore } from './authStore';
 
 export interface MessageThread {
@@ -79,10 +79,11 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
   dailyMessageCount: 0,
   dailyMessageLimit: FREE_DAILY_MESSAGE_LIMIT,
 
+  // Web ile aynı endpoint: GET /messages/threads
   fetchThreads: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.get('/messages/threads');
+      const response = await messagesApi.getThreads();
       const threadsData = response.data?.threads || response.data?.data || response.data || [];
       
       set({ 
@@ -95,9 +96,10 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
     }
   },
 
+  // Web ile aynı endpoint: GET /messages/threads/:id
   fetchThread: async (threadId: string) => {
     try {
-      const response = await api.get(`/messages/threads/${threadId}`);
+      const response = await messagesApi.getThread(threadId);
       set({ currentThread: response.data });
     } catch (error: any) {
       console.error('Failed to fetch thread:', error);
@@ -105,12 +107,11 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
     }
   },
 
+  // Web ile aynı endpoint: GET /messages/threads/:id/messages
   fetchMessages: async (threadId: string, page: number = 1) => {
     set({ isLoadingMessages: true });
     try {
-      const response = await api.get(`/messages/threads/${threadId}/messages`, {
-        params: { page, pageSize: 50 }
-      });
+      const response = await messagesApi.getMessages(threadId, { page, pageSize: 50 });
       const messagesData = response.data?.messages || response.data?.data || response.data || [];
       
       set({ 
@@ -123,6 +124,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
     }
   },
 
+  // Web ile aynı endpoint: POST /messages/threads/:id/messages
   sendMessage: async (threadId: string, content: string) => {
     const { dailyMessageCount, dailyMessageLimit, canSendMessage } = get();
     
@@ -133,7 +135,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
     }
 
     try {
-      const response = await api.post(`/messages/threads/${threadId}/messages`, { content });
+      const response = await messagesApi.sendMessage(threadId, content);
       
       // Add new message to the list
       const newMessage = response.data;
@@ -167,6 +169,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
     }
   },
 
+  // Web ile aynı endpoint: POST /messages/threads
   createThread: async (recipientId: string, content: string, productId?: string) => {
     const { canSendMessage } = get();
     
@@ -176,13 +179,16 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
     }
 
     try {
-      const payload: any = { recipientId, content };
-      if (productId) {
-        payload.productId = productId;
-      }
-
-      const response = await api.post('/messages/threads', payload);
+      const response = await messagesApi.createThread({ 
+        participantId: recipientId, 
+        productId 
+      });
       const newThread = response.data;
+
+      // Send the first message
+      if (content) {
+        await messagesApi.sendMessage(newThread.id, content);
+      }
 
       // Add to threads list
       set(state => ({
@@ -198,9 +204,10 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
     }
   },
 
+  // Web ile aynı endpoint: POST /messages/threads/:id/read
   markAsRead: async (threadId: string) => {
     try {
-      await api.patch(`/messages/threads/${threadId}/read`);
+      await messagesApi.markAsRead(threadId);
       
       // Update local state
       set(state => ({

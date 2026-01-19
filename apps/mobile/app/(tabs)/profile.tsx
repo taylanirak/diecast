@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { api } from '../../src/services/api';
+import { userApi } from '../../src/services/api';
 import { useAuthStore } from '../../src/stores/authStore';
 import { TarodanColors } from '../../src/theme';
 import { SignupPrompt } from '../../src/components/SignupPrompt';
@@ -17,11 +17,12 @@ export default function ProfileScreen() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [promptType, setPromptType] = useState<'favorites' | 'message' | 'purchase' | 'trade' | 'collections'>('favorites');
 
+  // Web ile aynı endpoint: GET /users/me/stats
   const { data: apiStats } = useQuery({
     queryKey: ['user-stats'],
     queryFn: async () => {
       try {
-        const response = await api.get('/users/me/stats');
+        const response = await userApi.getStats();
         return response.data?.data || response.data;
       } catch (error) {
         console.log('Stats API failed, using user data');

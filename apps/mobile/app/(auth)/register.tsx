@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { api } from '../../src/services/api';
+import { authApi } from '../../src/services/api';
 
 const registerSchema = z.object({
   displayName: z.string().min(2, 'İsim en az 2 karakter olmalı'),
@@ -30,8 +30,9 @@ export default function RegisterScreen() {
     },
   });
 
+  // Web ile aynı endpoint: POST /auth/register
   const registerMutation = useMutation({
-    mutationFn: (data: RegisterForm) => api.post('/auth/register', {
+    mutationFn: (data: RegisterForm) => authApi.register({
       displayName: data.displayName,
       email: data.email,
       password: data.password,

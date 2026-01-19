@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { api } from '../../src/services/api';
+import { api, productsApi, categoriesApi, collectionsApi } from '../../src/services/api';
 import { TarodanColors, SCALES, BRANDS } from '../../src/theme';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useGuestStore } from '../../src/stores/guestStore';
@@ -52,12 +52,12 @@ export default function HomeScreen() {
     }
   }, [isAuthenticated, getPromptType, canShowPrompt, setLastPromptShown]);
 
-  // Fetch products - web ile aynı endpoint
+  // Fetch products - web ile aynı endpoint: GET /products
   const { data: productsResponse, isLoading: loadingProducts, refetch: refetchProducts } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
       try {
-        const response = await api.get('/products', { params: { limit: 20 } });
+        const response = await productsApi.getAll({ limit: 20 });
         // Web ile aynı response yapısını destekle
         const products = response.data.data || response.data.products || response.data || [];
         console.log('📦 Ürünler yüklendi:', Array.isArray(products) ? products.length : 0);
@@ -69,12 +69,12 @@ export default function HomeScreen() {
     },
   });
 
-  // Fetch categories - web ile aynı endpoint
+  // Fetch categories - web ile aynı endpoint: GET /categories
   const { data: categoriesResponse } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
       try {
-        const response = await api.get('/categories');
+        const response = await categoriesApi.getAll();
         const cats = response.data.data || response.data || [];
         console.log('📂 Kategoriler yüklendi:', Array.isArray(cats) ? cats.length : 0);
         return Array.isArray(cats) ? cats : [];
@@ -85,12 +85,12 @@ export default function HomeScreen() {
     },
   });
 
-  // Fetch collections - web ile aynı endpoint
+  // Fetch collections - web ile aynı endpoint: GET /collections/browse
   const { data: collectionsResponse } = useQuery({
     queryKey: ['collections', 'browse'],
     queryFn: async () => {
       try {
-        const response = await api.get('/collections/browse', { params: { limit: 5 } });
+        const response = await collectionsApi.browse({ limit: 5 });
         const collections = response.data.data || response.data || [];
         return Array.isArray(collections) ? collections : [];
       } catch (error) {

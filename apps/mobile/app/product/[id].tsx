@@ -4,7 +4,7 @@ import { Text, Button, Chip, Card, Avatar, IconButton, ActivityIndicator, Snackb
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { api } from '../../src/services/api';
+import { productsApi, ratingsApi } from '../../src/services/api';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useCartStore } from '../../src/stores/cartStore';
 import { useGuestStore } from '../../src/stores/guestStore';
@@ -89,11 +89,12 @@ export default function ProductDetailScreen() {
     }
   }, [id, isAuthenticated]);
 
+  // Web ile aynı endpoint: GET /products/:id
   const { data: apiProduct, isLoading } = useQuery({
     queryKey: ['product', id],
     queryFn: async () => {
       try {
-        const response = await api.get(`/products/${id}`);
+        const response = await productsApi.getOne(productId);
         const product = response.data.data || response.data;
         console.log('📦 Ürün detayı yüklendi:', product?.title);
         return product;
@@ -105,11 +106,12 @@ export default function ProductDetailScreen() {
     retry: 1,
   });
 
+  // Web ile aynı endpoint: GET /ratings/products/:id
   const { data: reviews } = useQuery({
     queryKey: ['product-reviews', id],
     queryFn: async () => {
       try {
-        const response = await api.get(`/ratings/products/${id}`);
+        const response = await ratingsApi.getProductRatings(productId);
         return response.data.data || response.data || [];
       } catch {
         return MOCK_PRODUCT.reviews;
@@ -344,7 +346,9 @@ export default function ProductDetailScreen() {
               {product.category && (
                 <View style={styles.specItem}>
                   <Text style={styles.specLabel}>Kategori</Text>
-                  <Text style={styles.specValue}>{product.category}</Text>
+                  <Text style={styles.specValue}>
+                    {typeof product.category === 'object' ? product.category.name : product.category}
+                  </Text>
                 </View>
               )}
               {product.year && (
@@ -431,7 +435,7 @@ export default function ProductDetailScreen() {
               </TouchableOpacity>
             </View>
 
-            {(reviews || MOCK_PRODUCT.reviews).slice(0, 2).map((review: any) => (
+            {(Array.isArray(reviews) && reviews.length > 0 ? reviews : MOCK_PRODUCT.reviews || []).slice(0, 2).map((review: any) => (
               <View key={review.id} style={styles.reviewCard}>
                 <View style={styles.reviewHeader}>
                   <Text style={styles.reviewerName}>{review.userName}</Text>
@@ -453,7 +457,7 @@ export default function ProductDetailScreen() {
               </View>
             ))}
 
-            {(!reviews || reviews.length === 0) && (
+            {(!Array.isArray(reviews) || reviews.length === 0) && (!MOCK_PRODUCT.reviews || MOCK_PRODUCT.reviews.length === 0) && (
               <Text style={styles.noReviews}>Henüz değerlendirme yok</Text>
             )}
           </View>

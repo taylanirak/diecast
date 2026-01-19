@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { api } from '../../src/services/api';
+import { productsApi, categoriesApi } from '../../src/services/api';
 import { useAuthStore } from '../../src/stores/authStore';
 import { TarodanColors } from '../../src/theme';
 import { canPerformAction, getUpgradeMessage, getRemainingCount } from '../../src/utils/membershipLimits';
@@ -82,11 +82,12 @@ export default function CreateScreen() {
   const canCreate = canCreateListing();
 
   // Fetch categories from API
+  // Web ile aynı endpoint: GET /categories
   const { data: categoriesData } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
       try {
-        const response = await api.get('/categories');
+        const response = await categoriesApi.getAll();
         return response.data?.data || response.data || [];
       } catch (error) {
         console.log('Categories fetch error, using defaults');
@@ -146,7 +147,8 @@ export default function CreateScreen() {
         imageUrls: images.length > 0 ? images : undefined,
       };
 
-      return api.post('/products', payload);
+      // Web ile aynı endpoint: POST /products
+      return productsApi.create(payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
