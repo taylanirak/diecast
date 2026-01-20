@@ -1,0 +1,55 @@
+/**
+ * Sentry Module
+ * Error tracking and performance monitoring integration
+ */
+import { Module, Global, OnModuleInit } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import * as Sentry from '@sentry/node';
+import { SentryService } from './sentry.service';
+import { SentryInterceptor } from './sentry.interceptor';
+
+@Global()
+@Module({
+  imports: [ConfigModule],
+  providers: [SentryService, SentryInterceptor],
+  exports: [SentryService, SentryInterceptor],
+})
+export class SentryModule implements OnModuleInit {
+  constructor(private readonly configService: ConfigService) {}
+
+  onModuleInit() {
+    const dsn = this.configService.get<string>('SENTRY_DSN');
+    const environment = this.configService.get<string>('NODE_ENV', 'development');
+
+    if (dsn) {
+      Sentry.init({
+        dsn,
+        environment,
+        tracesSampleRate: environment === 'production' ? 0.2 : 1.0,
+        profilesSampleRate: environment === 'production' ? 0.1 : 1.0,
+        integrations: [
+          // HTTP integration for tracking outgoing requests
+          new Sentry.Integrations.Http({ tracing: true }),
+        ],
+        // Filter out health check endpoints
+        beforeSend(event, hint) {
+          const request = event.request;
+          if (request?.url?.includes('/health')) {
+            return null;
+          }
+          return event;
+        },
+        // Capture user context
+        beforeBreadcrumb(breadcrumb) {
+          if (breadcrumb.category === 'http' && breadcrumb.data?.url?.includes('/health')) {
+            return null;
+          }
+          return breadcrumb;
+        },
+      });
+      console.log('Sentry initialized for environment:', environment);
+    } else {
+      console.warn('Sentry DSN not configured, error tracking disabled');
+    }
+  }
+}
