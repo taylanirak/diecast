@@ -100,6 +100,50 @@ export default function HomeScreen() {
     },
   });
 
+  // Fetch Featured Collector (Haftanın Koleksiyoneri) - web ile aynı
+  const { data: featuredCollector } = useQuery({
+    queryKey: ['featured-collector'],
+    queryFn: async () => {
+      try {
+        const response = await collectionsApi.browse({ isPublic: true, page: 1, pageSize: 1 });
+        const collections = response.data?.collections || response.data?.data || [];
+        if (collections.length > 0) {
+          const collectionId = collections[0].id;
+          const detailResponse = await collectionsApi.getOne(collectionId);
+          return detailResponse.data?.collection || detailResponse.data;
+        }
+        return null;
+      } catch (error) {
+        console.log('⚠️ Haftanın Koleksiyoneri yüklenemedi');
+        return null;
+      }
+    },
+  });
+
+  // Fetch Company of Week (Haftanın Şirketi) - web ile aynı
+  const { data: companyOfWeek } = useQuery({
+    queryKey: ['company-of-week'],
+    queryFn: async () => {
+      try {
+        const response = await api.get('/users/top-sellers?limit=1');
+        const sellers = response.data?.data || response.data || [];
+        if (sellers.length > 0) {
+          const sellerId = sellers[0].id;
+          const productsResponse = await productsApi.getAll({ sellerId, limit: 3 });
+          const products = productsResponse.data?.data || productsResponse.data?.products || [];
+          return {
+            ...sellers[0],
+            products: products.slice(0, 3),
+          };
+        }
+        return null;
+      } catch (error) {
+        console.log('⚠️ Haftanın Şirketi yüklenemedi');
+        return null;
+      }
+    },
+  });
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await refetchProducts();
@@ -184,10 +228,16 @@ export default function HomeScreen() {
           <Text style={styles.logo}>TARO<Text style={styles.logoAccent}>DAN</Text></Text>
           <View style={styles.headerActions}>
             <IconButton
-              icon="account-outline"
+              icon="folder-multiple-outline"
               iconColor={TarodanColors.textOnPrimary}
               size={24}
-              onPress={() => router.push('/profile')}
+              onPress={() => router.push('/collections')}
+            />
+            <IconButton
+              icon="heart-outline"
+              iconColor={TarodanColors.textOnPrimary}
+              size={24}
+              onPress={() => router.push('/favorites')}
             />
             <IconButton
               icon="cart-outline"
@@ -325,6 +375,64 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
+        {/* Haftanın Koleksiyoneri Section */}
+        {featuredCollector && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleContainer}>
+                <View style={styles.sectionIndicator} />
+                <Text style={styles.sectionTitle}>Haftanın Koleksiyoneri</Text>
+              </View>
+              <TouchableOpacity onPress={() => router.push('/collections')}>
+                <Text style={styles.seeAllText}>Tümünü gör {'>'}</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.featuredCard}>
+              <View style={styles.featuredHeader}>
+                <View style={styles.featuredAvatar}>
+                  <Text style={styles.featuredAvatarText}>
+                    {(featuredCollector.userName || 'K').charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.featuredInfo}>
+                  <Text style={styles.featuredName}>{featuredCollector.userName || 'Koleksiyoner'}</Text>
+                  <Text style={styles.featuredDesc}>
+                    {featuredCollector.description || `${featuredCollector.itemCount || 0} araçlık koleksiyon`}
+                  </Text>
+                  <View style={styles.featuredStats}>
+                    <Ionicons name="thumbs-up" size={14} color={TarodanColors.primary} />
+                    <Text style={styles.featuredStatText}>{featuredCollector.likeCount || 0}</Text>
+                  </View>
+                </View>
+              </View>
+              {featuredCollector.items && featuredCollector.items.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.featuredProducts}>
+                  {featuredCollector.items.slice(0, 3).map((item: any) => (
+                    <TouchableOpacity 
+                      key={item.id} 
+                      style={styles.featuredProductCard}
+                      onPress={() => router.push(`/product/${item.productId}`)}
+                    >
+                      <Image
+                        source={{ uri: item.productImage || 'https://placehold.co/150x150/f3f4f6/9ca3af?text=Ürün' }}
+                        style={styles.featuredProductImage}
+                      />
+                      <Text style={styles.featuredProductTitle} numberOfLines={2}>{item.productTitle}</Text>
+                      <Text style={styles.featuredProductPrice}>₺{item.productPrice?.toLocaleString('tr-TR')}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+              <TouchableOpacity 
+                style={styles.viewGarageBtn}
+                onPress={() => router.push(`/collection/${featuredCollector.id}`)}
+              >
+                <Text style={styles.viewGarageBtnText}>Garajını incele →</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* Products Section - Öne Çıkanlar */}
         <View style={[styles.section, styles.bestSellersSection]}>
           <View style={styles.sectionHeader}>
@@ -373,6 +481,74 @@ export default function HomeScreen() {
                   {renderProductCard(item, index)}
                 </View>
               ))}
+            </View>
+          </View>
+        )}
+
+        {/* Haftanın Şirketi Section */}
+        {companyOfWeek && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleContainer}>
+                <View style={styles.sectionIndicator} />
+                <Text style={styles.sectionTitle}>Haftanın Şirketi</Text>
+              </View>
+              <TouchableOpacity onPress={() => router.push('/collections')}>
+                <Text style={styles.seeAllText}>Tümünü gör {'>'}</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.featuredCard}>
+              <View style={styles.featuredHeader}>
+                <View style={styles.featuredAvatar}>
+                  <Text style={styles.featuredAvatarText}>
+                    {(companyOfWeek.displayName || 'Ş').charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.featuredInfo}>
+                  <Text style={styles.featuredName}>{companyOfWeek.displayName || 'Şirket'}</Text>
+                  <Text style={styles.featuredDesc}>
+                    {companyOfWeek.bio || 'Premium Diecast araçların alım ve satımı'}
+                  </Text>
+                  <View style={styles.companyMetaRow}>
+                    {companyOfWeek.rating && (
+                      <View style={styles.ratingBadge}>
+                        <Ionicons name="star" size={14} color="#F59E0B" />
+                        <Text style={styles.ratingBadgeText}>{companyOfWeek.rating.toFixed(1)}</Text>
+                      </View>
+                    )}
+                    {companyOfWeek.isVerified && (
+                      <View style={styles.verifiedBadgeSmall}>
+                        <Ionicons name="checkmark-circle" size={14} color={TarodanColors.success} />
+                        <Text style={styles.verifiedBadgeSmallText}>Onaylı</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </View>
+              {companyOfWeek.products && companyOfWeek.products.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.featuredProducts}>
+                  {companyOfWeek.products.slice(0, 3).map((product: any) => (
+                    <TouchableOpacity 
+                      key={product.id} 
+                      style={styles.featuredProductCard}
+                      onPress={() => router.push(`/product/${product.id}`)}
+                    >
+                      <Image
+                        source={{ uri: product.images?.[0] || 'https://placehold.co/150x150/f3f4f6/9ca3af?text=Ürün' }}
+                        style={styles.featuredProductImage}
+                      />
+                      <Text style={styles.featuredProductTitle} numberOfLines={2}>{product.title}</Text>
+                      <Text style={styles.featuredProductPrice}>₺{product.price?.toLocaleString('tr-TR')}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+              <TouchableOpacity 
+                style={styles.viewGarageBtn}
+                onPress={() => router.push(`/profile/${companyOfWeek.id}`)}
+              >
+                <Text style={styles.viewGarageBtnText}>Garajını incele →</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -845,5 +1021,116 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: TarodanColors.textSecondary,
     marginTop: 2,
+  },
+  featuredCard: {
+    backgroundColor: TarodanColors.surfaceVariant,
+    marginHorizontal: 16,
+    borderRadius: 16,
+    padding: 16,
+  },
+  featuredHeader: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  featuredAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: TarodanColors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  featuredAvatarText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  featuredInfo: {
+    flex: 1,
+    marginLeft: 12,
+    justifyContent: 'center',
+  },
+  featuredName: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: TarodanColors.textPrimary,
+  },
+  featuredDesc: {
+    fontSize: 12,
+    color: TarodanColors.textSecondary,
+    marginTop: 2,
+  },
+  featuredStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  featuredStatText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: TarodanColors.textPrimary,
+    marginLeft: 4,
+  },
+  featuredProducts: {
+    marginBottom: 12,
+  },
+  featuredProductCard: {
+    width: 130,
+    marginRight: 12,
+    backgroundColor: TarodanColors.surface,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  featuredProductImage: {
+    width: '100%',
+    height: 100,
+    backgroundColor: TarodanColors.backgroundSecondary,
+  },
+  featuredProductTitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: TarodanColors.textPrimary,
+    padding: 8,
+    paddingBottom: 4,
+  },
+  featuredProductPrice: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: TarodanColors.primary,
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+  },
+  viewGarageBtn: {
+    alignSelf: 'flex-start',
+  },
+  viewGarageBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: TarodanColors.primary,
+  },
+  companyMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 12,
+  },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratingBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: TarodanColors.textPrimary,
+    marginLeft: 4,
+  },
+  verifiedBadgeSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  verifiedBadgeSmallText: {
+    fontSize: 12,
+    color: TarodanColors.success,
+    marginLeft: 4,
   },
 });

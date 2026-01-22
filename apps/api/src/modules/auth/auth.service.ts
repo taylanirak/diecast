@@ -128,7 +128,7 @@ export class AuthService {
           createdAt: user.createdAt,
           membership: user.membership ? {
             tier: user.membership.tier,
-            expiresAt: user.membership.expiresAt?.toISOString(),
+            expiresAt: user.membership.currentPeriodEnd?.toISOString(),
           } : undefined,
         },
         tokens,

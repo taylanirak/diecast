@@ -14,6 +14,25 @@ export class TokensDto {
   refreshToken: string;
 }
 
+export class MembershipTierDto {
+  @ApiProperty({ example: 'uuid-string' })
+  id: string;
+
+  @ApiProperty({ example: 'free' })
+  type: string;
+
+  @ApiProperty({ example: 'Ücretsiz' })
+  name: string;
+}
+
+export class UserMembershipDto {
+  @ApiProperty({ type: MembershipTierDto })
+  tier: MembershipTierDto;
+
+  @ApiProperty({ example: '2024-12-31T23:59:59.000Z', required: false })
+  expiresAt?: string;
+}
+
 export class UserResponseDto {
   @ApiProperty({ example: 'uuid-string' })
   id: string;
@@ -38,6 +57,9 @@ export class UserResponseDto {
 
   @ApiProperty({ example: '2024-01-15T10:30:00.000Z' })
   createdAt: Date;
+
+  @ApiProperty({ type: UserMembershipDto, required: false })
+  membership?: UserMembershipDto;
 }
 
 export class AuthResponseDto {

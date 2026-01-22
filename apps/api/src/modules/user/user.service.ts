@@ -43,7 +43,7 @@ export class UserService {
         addresses: {
           orderBy: { isDefault: 'desc' },
         },
-        userMembership: {
+        membership: {
           include: {
             tier: true,
           },
@@ -61,23 +61,23 @@ export class UserService {
     }
 
     // Format membership info for frontend
-    const membershipInfo = user.userMembership ? {
-      id: user.userMembership.id,
-      status: user.userMembership.status,
-      currentPeriodStart: user.userMembership.currentPeriodStart,
-      currentPeriodEnd: user.userMembership.currentPeriodEnd,
+    const membershipInfo = user.membership ? {
+      id: user.membership.id,
+      status: user.membership.status,
+      currentPeriodStart: user.membership.currentPeriodStart,
+      currentPeriodEnd: user.membership.currentPeriodEnd,
       tier: {
-        id: user.userMembership.tier.id,
-        type: user.userMembership.tier.type,
-        name: user.userMembership.tier.name,
-        maxFreeListings: user.userMembership.tier.maxFreeListings,
-        maxTotalListings: user.userMembership.tier.maxTotalListings,
-        maxImagesPerListing: user.userMembership.tier.maxImagesPerListing,
-        canCreateCollections: user.userMembership.tier.canCreateCollections,
-        canTrade: user.userMembership.tier.canTrade,
-        isAdFree: user.userMembership.tier.isAdFree,
-        featuredListingSlots: user.userMembership.tier.featuredListingSlots,
-        commissionDiscount: user.userMembership.tier.commissionDiscount,
+        id: user.membership.tier.id,
+        type: user.membership.tier.type,
+        name: user.membership.tier.name,
+        maxFreeListings: user.membership.tier.maxFreeListings,
+        maxTotalListings: user.membership.tier.maxTotalListings,
+        maxImagesPerListing: user.membership.tier.maxImagesPerListing,
+        canCreateCollections: user.membership.tier.canCreateCollections,
+        canTrade: user.membership.tier.canTrade,
+        isAdFree: user.membership.tier.isAdFree,
+        featuredListingSlots: user.membership.tier.featuredListingSlots,
+        commissionDiscount: user.membership.tier.commissionDiscount,
       },
     } : {
       tier: {
@@ -96,12 +96,12 @@ export class UserService {
       expiresAt: null,
     };
 
-    // Remove raw userMembership and add the mapped membership
-    const { userMembership, ...rest } = user;
+    // Remove raw membership relation and add the mapped membership
+    const { membership: _membership, _count, ...rest } = user;
     return { 
       ...rest, 
       membership: membershipInfo,
-      listingCount: user._count?.products || 0,
+      listingCount: _count?.products || 0,
     };
   }
 
